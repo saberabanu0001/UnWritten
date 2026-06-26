@@ -10,6 +10,24 @@ from google.genai.errors import ClientError
 from app.config import settings
 
 
+def _decode_image_data(data: str | bytes) -> bytes:
+    """Normalize Gemini image payloads to raw binary (PNG/JPEG)."""
+    raw = base64.b64decode(data) if isinstance(data, str) else data
+
+    if raw[:4] == b"\x89PNG" or raw[:3] == b"\xff\xd8\xff":
+        return raw
+
+    # Some Gemini responses return base64-encoded bytes instead of raw image bytes.
+    try:
+        decoded = base64.b64decode(raw, validate=True)
+        if decoded[:4] == b"\x89PNG" or decoded[:3] == b"\xff\xd8\xff":
+            return decoded
+    except Exception:
+        pass
+
+    return raw
+
+
 @lru_cache
 def get_gemini_client() -> genai.Client | None:
     if not settings.gemini_api_key:
@@ -66,7 +84,7 @@ def _generate_image_sync(prompt: str) -> bytes:
                     input=prompt,
                 )
                 if interaction.output_image and interaction.output_image.data:
-                    return base64.b64decode(interaction.output_image.data)
+                    return _decode_image_data(interaction.output_image.data)
             except ClientError as exc:
                 if exc.status_code != 429:
                     raise
@@ -85,10 +103,7 @@ def _generate_image_sync(prompt: str) -> bytes:
             if response.candidates:
                 for part in response.candidates[0].content.parts:
                     if part.inline_data and part.inline_data.data:
-                        data = part.inline_data.data
-                        if isinstance(data, str):
-                            return base64.b64decode(data)
-                        return data
+                        return _decode_image_data(part.inline_data.data)
 
             raise RuntimeError("No image returned from Gemini")
         except ClientError as exc:

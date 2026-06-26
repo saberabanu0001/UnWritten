@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.models.book import Book
@@ -20,8 +21,10 @@ def _chapter_preview(chapter: Chapter) -> str:
     return text[:80] + ("..." if len(text) > 80 else "")
 
 
-def _chapter_to_read(chapter: Chapter) -> ChapterRead:
-    image_url = chapter.images[0].image_url if chapter.images else None
+def _chapter_to_read(chapter: Chapter, *, image_url: str | None = None) -> ChapterRead:
+    resolved_image_url = image_url
+    if resolved_image_url is None and chapter.images:
+        resolved_image_url = chapter.images[0].image_url
     return ChapterRead(
         id=chapter.id,
         book_id=chapter.book_id,
@@ -35,7 +38,7 @@ def _chapter_to_read(chapter: Chapter) -> ChapterRead:
         scene_data=chapter.scene_data,
         prose=chapter.prose,
         pull_quote=chapter.pull_quote,
-        image_url=image_url,
+        image_url=resolved_image_url,
         is_sealed=chapter.is_sealed,
         is_draft=chapter.is_draft,
         created_at=chapter.created_at,
@@ -124,7 +127,10 @@ async def delete_book(db: AsyncSession, user: User, book_id: str) -> None:
 async def list_chapters(db: AsyncSession, user: User, book_id: str) -> list[ChapterRead]:
     await _get_user_book(db, book_id, user.id)
     result = await db.execute(
-        select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.sort_order, Chapter.chapter_number)
+        select(Chapter)
+        .options(selectinload(Chapter.images))
+        .where(Chapter.book_id == book_id)
+        .order_by(Chapter.sort_order, Chapter.chapter_number)
     )
     return [_chapter_to_read(ch) for ch in result.scalars().all()]
 
@@ -157,14 +163,15 @@ async def create_chapter(db: AsyncSession, user: User, book_id: str, data: Chapt
     if data.image_url:
         db.add(ChapterImage(chapter_id=chapter.id, image_url=data.image_url))
 
+    await db.flush()
     await db.refresh(chapter)
-    result = await db.execute(select(Chapter).where(Chapter.id == chapter.id))
-    chapter = result.scalar_one()
-    return _chapter_to_read(chapter)
+    return _chapter_to_read(chapter, image_url=data.image_url)
 
 
 async def get_chapter(db: AsyncSession, user: User, chapter_id: str) -> ChapterRead:
-    result = await db.execute(select(Chapter).where(Chapter.id == chapter_id))
+    result = await db.execute(
+        select(Chapter).options(selectinload(Chapter.images)).where(Chapter.id == chapter_id)
+    )
     chapter = result.scalar_one_or_none()
     if not chapter:
         from fastapi import HTTPException
@@ -175,7 +182,9 @@ async def get_chapter(db: AsyncSession, user: User, chapter_id: str) -> ChapterR
 
 
 async def update_chapter(db: AsyncSession, user: User, chapter_id: str, data: ChapterUpdate) -> ChapterRead:
-    result = await db.execute(select(Chapter).where(Chapter.id == chapter_id))
+    result = await db.execute(
+        select(Chapter).options(selectinload(Chapter.images)).where(Chapter.id == chapter_id)
+    )
     chapter = result.scalar_one_or_none()
     if not chapter:
         from fastapi import HTTPException
@@ -189,7 +198,9 @@ async def update_chapter(db: AsyncSession, user: User, chapter_id: str, data: Ch
 
 
 async def delete_chapter(db: AsyncSession, user: User, chapter_id: str) -> None:
-    result = await db.execute(select(Chapter).where(Chapter.id == chapter_id))
+    result = await db.execute(
+        select(Chapter).options(selectinload(Chapter.images)).where(Chapter.id == chapter_id)
+    )
     chapter = result.scalar_one_or_none()
     if not chapter:
         from fastapi import HTTPException
