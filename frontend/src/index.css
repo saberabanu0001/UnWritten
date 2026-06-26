@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-body antialiased;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .book-page-body {
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+  }
+
+  .book-illustration {
+    float: left;
+    width: 180px;
+    height: 155px;
+    margin-right: 1rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid rgba(212, 165, 116, 0.25);
+    border-radius: 2px;
+    shape-outside: margin-box;
+  }
+
+  .book-paragraph + .book-paragraph {
+    text-indent: 1.5rem;
+  }
+}

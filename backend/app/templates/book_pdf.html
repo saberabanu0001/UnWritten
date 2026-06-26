@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Lora:ital@0;1&family=Playfair+Display:ital@0;1&display=swap');
+  body { font-family: 'Lora', Georgia, serif; background: #F5F0E8; color: #2C2416; margin: 0; padding: 40px; }
+  .cover { text-align: center; page-break-after: always; padding-top: 200px; }
+  .cover h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 36px; color: #8B4513; }
+  .cover p { font-style: italic; color: #6B5D4F; }
+  .chapter { page-break-after: always; max-width: 520px; margin: 0 auto; padding: 40px 20px; }
+  .chapter-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #9B8B7A; text-align: center; }
+  .chapter-num { font-family: 'Playfair Display', Georgia, serif; font-size: 32px; text-align: center; margin: 8px 0; }
+  .chapter-title { font-family: 'Playfair Display', Georgia, serif; font-style: italic; color: #8B4513; text-align: center; font-size: 16px; }
+  .ornament { text-align: center; color: #D4A574; margin: 16px 0; }
+  .illustration { float: left; width: 180px; height: 155px; margin: 0 16px 8px 0; border: 1px solid rgba(212,165,116,0.25); object-fit: cover; }
+  .prose { text-align: justify; font-size: 15px; line-height: 1.8; }
+  .prose p + p { text-indent: 1.5rem; }
+  .pull-quote { border-top: 1px solid rgba(212,165,116,0.4); border-bottom: 1px solid rgba(212,165,116,0.4); margin: 28px 24px; padding: 16px 0; text-align: center; font-family: 'Playfair Display', Georgia, serif; font-style: italic; color: #8B4513; font-size: 15px; }
+  .footer { text-align: center; font-size: 11px; color: #9B8B7A; margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <p>A PRIVATE MEMOIR</p>
+    <h1>{{ book_title }}</h1>
+    <div class="ornament">── ✦ ──</div>
+    <p>Started {{ date_range }}</p>
+  </div>
+  {% for ch in chapters %}
+  <div class="chapter">
+    <div class="chapter-label">Chapter</div>
+    <div class="chapter-num">{{ ch.number_roman }}</div>
+    <div class="chapter-title">{{ ch.title }}</div>
+    <div class="ornament">── ✦ ──</div>
+  {% if ch.image_url %}
+    <img class="illustration" src="{{ ch.image_url }}" alt=""/>
+  {% endif %}
+    <div class="prose">
+    {% for para in ch.paragraphs %}
+      <p>{{ para }}</p>
+    {% endfor %}
+    </div>
+  {% if ch.pull_quote %}
+    <div class="pull-quote">"{{ ch.pull_quote }}"</div>
+  {% endif %}
+    <div class="ornament">── ✦ ──</div>
+  </div>
+  {% endfor %}
+  <div class="footer">Generated {{ generated_at }} · Unwritten</div>
+</body>
+</html>
