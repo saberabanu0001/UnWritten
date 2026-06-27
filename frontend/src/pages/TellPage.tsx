@@ -36,9 +36,20 @@ export function TellPage() {
   }
 
   const handleContinue = () => {
+    const trimmed = text.trim()
+    const existing = useBookStore.getState().draft
+    const memoryChanged = existing?.rawInput !== trimmed
+
     const draft = createEmptyDraft(language)
-    draft.rawInput = text.trim()
+    draft.rawInput = trimmed
     draft.inputMethod = inputMethod
+
+    if (!memoryChanged && existing) {
+      draft.sceneData = existing.sceneData
+      draft.conversation = existing.conversation ?? []
+      draft.enrichmentSummary = existing.enrichmentSummary
+    }
+
     setDraft(draft)
     navigate('/craft')
   }

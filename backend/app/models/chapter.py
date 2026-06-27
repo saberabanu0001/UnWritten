@@ -19,6 +19,8 @@ class Chapter(Base):
     language: Mapped[str] = mapped_column(String(10), default="en")
     followup_question: Mapped[str | None] = mapped_column(Text, nullable=True)
     followup_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conversation_history: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    enrichment_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     scene_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     prose: Mapped[str | None] = mapped_column(Text, nullable=True)
     pull_quote: Mapped[str | None] = mapped_column(Text, nullable=True)

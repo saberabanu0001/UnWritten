@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -21,6 +22,20 @@ async def get_db():
             raise
 
 
+async def _migrate_chapters_columns(conn):
+    """Add new columns to existing SQLite databases (create_all does not alter tables)."""
+    migrations = [
+        "ALTER TABLE chapters ADD COLUMN conversation_history JSON",
+        "ALTER TABLE chapters ADD COLUMN enrichment_summary TEXT",
+    ]
+    for statement in migrations:
+        try:
+            await conn.execute(text(statement))
+        except Exception:
+            pass
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _migrate_chapters_columns(conn)

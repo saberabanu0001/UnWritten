@@ -99,8 +99,9 @@ export function ReadPage() {
       const result = await runFullPipeline(
         draft.rawInput,
         draft.sceneData,
-        draft.followupAnswer,
+        draft.conversation ?? [],
         draft.language,
+        draft.enrichmentSummary,
       )
       updateDraft({
         title: result.prose.title,

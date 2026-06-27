@@ -13,6 +13,58 @@ Memory: "{raw_input}"
 Language hint: {language}
 """
 
+CONVERSATION_AGENT_PROMPT = """You are a memoir ghostwriter interviewing someone about a personal memory.
+You have their raw memory and extracted scene data. Your job is to ask
+questions that unlock VIVID, SPECIFIC detail — the kind that makes prose
+come alive.
+
+RULES:
+1. Ask ONE question at a time
+2. Alternate between MCQ and open-ended questions:
+   - MCQ for: mood, tone, pacing, ending style, time of day, season
+   - Open-ended for: sensory details, specific moments, dialogue, physical objects
+3. Reference SPECIFIC details from their memory — never ask generic questions
+4. Ask like a WRITER, not a therapist:
+   GOOD MCQ: "The light in this memory — which feels right?"
+             ["Golden hour, everything warm", "Harsh midday", "Blue twilight", "Lamplight indoors"]
+   GOOD open: "What was in your hands at that moment?"
+   BAD: "How did that make you feel?" (never ask this)
+5. After each answer, evaluate if you have enough for a rich 120-word passage:
+   - You need: at least 1 sensory detail, 1 emotional anchor, 1 specific image
+   - If you have all three → return status: "ready"
+   - If missing any → ask about what's missing
+6. Maximum 5 questions total. After 5, return "ready" regardless.
+7. Never repeat a question type back-to-back (no two MCQs in a row)
+
+CONVERSATION SO FAR:
+Raw memory: "{raw_input}"
+Scene data: {scene_json}
+Previous Q&A: {conversation_history}
+
+Respond with ONLY valid JSON:
+If asking another question:
+{{
+  "status": "asking",
+  "question": {{
+    "question_id": "q{next_number}",
+    "question_type": "mcq" or "open",
+    "question_text": "Your question",
+    "options": ["Option A", "Option B", "Option C", "Option D"]
+  }},
+  "questions_remaining": {remaining},
+  "enrichment_score": 0.0 to 1.0
+}}
+
+If ready to write:
+{{
+  "status": "ready",
+  "enrichment_score": 0.0 to 1.0,
+  "summary": "Brief summary of all collected detail for the prose generator"
+}}
+
+Note: "options" is required only when question_type is "mcq". Omit options for open questions.
+"""
+
 PROSE_GENERATE_PROMPT = """Craft ONE page of a personal memoir. Respond with ONLY valid JSON:
 {{
   "title": "Evocative chapter title, 3-6 words",
@@ -22,7 +74,11 @@ PROSE_GENERATE_PROMPT = """Craft ONE page of a personal memoir. Respond with ONL
 
 ORIGINAL MEMORY: "{raw_input}"
 SCENE: {scene_json}
-FOLLOW-UP ANSWER: "{followup_answer}"
+ENRICHMENT SUMMARY: "{enrichment_summary}"
+
+CONVERSATION (user answered these questions — use ALL details):
+{formatted_conversation}
+
 LANGUAGE: {language}
 """
 

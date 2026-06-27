@@ -10,6 +10,8 @@ class ChapterCreate(BaseModel):
     language: str = "en"
     followup_question: Optional[str] = None
     followup_answer: Optional[str] = None
+    conversation_history: Optional[list] = None
+    enrichment_summary: Optional[str] = None
     scene_data: Optional[dict] = None
     title: Optional[str] = None
     prose: Optional[str] = None
@@ -41,6 +43,8 @@ class ChapterRead(BaseModel):
     language: str
     followup_question: Optional[str] = None
     followup_answer: Optional[str] = None
+    conversation_history: Optional[list] = None
+    enrichment_summary: Optional[str] = None
     scene_data: Optional[dict] = None
     prose: Optional[str] = None
     pull_quote: Optional[str] = None

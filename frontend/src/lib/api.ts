@@ -3,6 +3,8 @@ import { API_BASE } from './constants'
 import type {
   Book,
   Chapter,
+  ConversationQuestion,
+  ConversationResponse,
   DraftChapter,
   ProseResult,
   SceneData,
@@ -48,12 +50,15 @@ export async function getChapter(chapterId: string): Promise<Chapter> {
 }
 
 export async function saveChapter(bookId: string, draft: DraftChapter): Promise<Chapter> {
+  const first = draft.conversation[0]
   const { data } = await api.post(`/books/${bookId}/chapters`, {
     raw_input: draft.rawInput,
     input_method: draft.inputMethod,
     language: draft.language,
-    followup_question: draft.followupQuestion,
-    followup_answer: draft.followupAnswer,
+    followup_question: first?.question_text,
+    followup_answer: first?.answer,
+    conversation_history: draft.conversation,
+    enrichment_summary: draft.enrichmentSummary,
     scene_data: draft.sceneData,
     title: draft.title,
     prose: draft.prose,
@@ -75,16 +80,33 @@ export async function extractScene(rawInput: string, language: string): Promise<
   return data
 }
 
+export async function conversationStep(
+  rawInput: string,
+  language: string,
+  sceneData: SceneData,
+  conversationHistory: ConversationQuestion[],
+): Promise<ConversationResponse> {
+  const { data } = await api.post('/ai/conversation', {
+    raw_input: rawInput,
+    language,
+    scene_data: sceneData,
+    conversation_history: conversationHistory,
+  })
+  return data
+}
+
 export async function generateProse(
   rawInput: string,
   sceneData: SceneData,
-  followupAnswer: string | undefined,
+  conversation: ConversationQuestion[],
   language: string,
+  enrichmentSummary?: string,
 ): Promise<ProseResult> {
   const { data } = await api.post('/ai/generate-prose', {
     raw_input: rawInput,
     scene_data: sceneData,
-    followup_answer: followupAnswer,
+    conversation_history: conversation,
+    enrichment_summary: enrichmentSummary,
     language,
   })
   return data

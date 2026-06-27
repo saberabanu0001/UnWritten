@@ -10,6 +10,10 @@ from google.genai.errors import ClientError
 from app.config import settings
 
 
+def _client_error_code(exc: ClientError) -> int:
+    return getattr(exc, "code", None) or getattr(exc, "status_code", 0)
+
+
 def _decode_image_data(data: str | bytes) -> bytes:
     """Normalize Gemini image payloads to raw binary (PNG/JPEG)."""
     raw = base64.b64decode(data) if isinstance(data, str) else data
@@ -61,7 +65,7 @@ def _generate_text_sync(prompt: str, *, json_mode: bool = False) -> str:
             return text.strip()
         except ClientError as exc:
             last_error = exc
-            if exc.status_code in (429, 503) and attempt < 3:
+            if _client_error_code(exc) in (429, 503) and attempt < 3:
                 time.sleep(3 + attempt * 4)
                 continue
             raise
@@ -86,7 +90,7 @@ def _generate_image_sync(prompt: str) -> bytes:
                 if interaction.output_image and interaction.output_image.data:
                     return _decode_image_data(interaction.output_image.data)
             except ClientError as exc:
-                if exc.status_code != 429:
+                if _client_error_code(exc) != 429:
                     raise
                 last_error = exc
             except Exception:
@@ -108,7 +112,7 @@ def _generate_image_sync(prompt: str) -> bytes:
             raise RuntimeError("No image returned from Gemini")
         except ClientError as exc:
             last_error = exc
-            if exc.status_code == 429 and attempt < 2:
+            if _client_error_code(exc) == 429 and attempt < 2:
                 time.sleep(12 + attempt * 6)
                 continue
             raise

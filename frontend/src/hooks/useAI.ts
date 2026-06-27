@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
 import axios from 'axios'
-import { extractScene, generateImage, generateProse } from '../lib/api'
-import type { ProseResult, SceneData } from '../lib/types'
+import { conversationStep, extractScene, generateImage, generateProse } from '../lib/api'
+import type { ConversationQuestion, ConversationResponse, ProseResult, SceneData } from '../lib/types'
 
-type AIStep = 'idle' | 'extracting' | 'writing' | 'illustrating'
+type AIStep = 'idle' | 'extracting' | 'asking' | 'writing' | 'illustrating'
 
 function apiErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
@@ -21,6 +21,10 @@ export function useAI() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<AIStep>('idle')
+  const [currentQuestion, setCurrentQuestion] = useState<ConversationQuestion | null>(null)
+  const [enrichmentScore, setEnrichmentScore] = useState(0)
+  const [isReady, setIsReady] = useState(false)
+  const [conversationErrorCount, setConversationErrorCount] = useState(0)
 
   const runExtractScene = useCallback(async (rawInput: string, language: string) => {
     setIsLoading(true)
@@ -39,18 +43,63 @@ export function useAI() {
     }
   }, [])
 
+  const runConversationStep = useCallback(
+    async (
+      rawInput: string,
+      language: string,
+      scene: SceneData,
+      history: ConversationQuestion[],
+    ): Promise<ConversationResponse> => {
+      setStep('asking')
+      setIsLoading(true)
+      setError(null)
+      try {
+        const result = await conversationStep(rawInput, language, scene, history)
+        setEnrichmentScore(result.enrichment_score ?? 0)
+        setConversationErrorCount(0)
+
+        if (result.status === 'ready') {
+          setIsReady(true)
+          setCurrentQuestion(null)
+          return result
+        }
+
+        if (result.question) {
+          setCurrentQuestion(result.question)
+          setIsReady(false)
+        }
+        return result
+      } catch (e) {
+        setConversationErrorCount((c) => c + 1)
+        setError(apiErrorMessage(e, 'Could not continue the conversation. Please try again.'))
+        throw e
+      } finally {
+        setIsLoading(false)
+        setStep('idle')
+      }
+    },
+    [],
+  )
+
   const runGenerateProse = useCallback(
     async (
       rawInput: string,
       scene: SceneData,
-      followupAnswer: string | undefined,
+      conversation: ConversationQuestion[],
       language: string,
+      enrichmentSummary?: string,
     ) => {
       setIsLoading(true)
       setError(null)
       setStep('writing')
       try {
-        const result = await generateProse(rawInput, scene, followupAnswer, language)
+        const result = await generateProse(
+          rawInput,
+          scene,
+          conversation,
+          language,
+          enrichmentSummary,
+        )
         setProseResult(result)
         return result
       } catch (e) {
@@ -82,10 +131,17 @@ export function useAI() {
     async (
       rawInput: string,
       scene: SceneData,
-      followupAnswer: string | undefined,
+      conversation: ConversationQuestion[],
       language: string,
+      enrichmentSummary?: string,
     ) => {
-      const prose = await runGenerateProse(rawInput, scene, followupAnswer, language)
+      const prose = await runGenerateProse(
+        rawInput,
+        scene,
+        conversation,
+        language,
+        enrichmentSummary,
+      )
       const image = await runGenerateImage(scene)
       return {
         prose,
@@ -104,6 +160,10 @@ export function useAI() {
     setError(null)
     setStep('idle')
     setIsLoading(false)
+    setCurrentQuestion(null)
+    setEnrichmentScore(0)
+    setIsReady(false)
+    setConversationErrorCount(0)
   }, [])
 
   const hydrateScene = useCallback((scene: SceneData) => {
@@ -113,6 +173,20 @@ export function useAI() {
     setIsLoading(false)
   }, [])
 
+  const hydrateConversation = useCallback(
+    (history: ConversationQuestion[], summary?: string) => {
+      if (summary) {
+        setIsReady(true)
+        setEnrichmentScore(0.85)
+        setCurrentQuestion(null)
+      }
+      if (history.length > 0 && !summary) {
+        setEnrichmentScore(Math.min(history.length * 0.15, 0.7))
+      }
+    },
+    [],
+  )
+
   return {
     sceneData,
     proseResult,
@@ -121,11 +195,17 @@ export function useAI() {
     isLoading,
     error,
     step,
+    currentQuestion,
+    enrichmentScore,
+    isReady,
+    conversationErrorCount,
     runExtractScene,
+    runConversationStep,
     runGenerateProse,
     runGenerateImage,
     runFullPipeline,
     reset,
     hydrateScene,
+    hydrateConversation,
   }
 }

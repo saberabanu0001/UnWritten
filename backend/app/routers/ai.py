@@ -7,6 +7,8 @@ from app.database import get_db
 from app.models.chapter import Chapter
 from app.models.user import User
 from app.schemas.ai import (
+    ConversationRequest,
+    ConversationResponse,
     ImageGenerateRequest,
     ImageGenerateResponse,
     ProseGenerateRequest,
@@ -29,13 +31,30 @@ async def extract_scene(
     return await ai_service.extract_scene(data.raw_input, data.language)
 
 
+@router.post("/conversation", response_model=ConversationResponse)
+async def conversation_step(
+    data: ConversationRequest,
+    user: User = Depends(get_current_user),
+):
+    return await ai_service.run_conversation_step(
+        data.raw_input,
+        data.language,
+        data.scene_data,
+        data.conversation_history,
+    )
+
+
 @router.post("/generate-prose", response_model=ProseGenerateResponse)
 async def generate_prose(
     data: ProseGenerateRequest,
     user: User = Depends(get_current_user),
 ):
     return await ai_service.generate_prose(
-        data.raw_input, data.scene_data, data.followup_answer, data.language
+        data.raw_input,
+        data.scene_data,
+        data.conversation_history,
+        data.enrichment_summary,
+        data.language,
     )
 
 
@@ -68,7 +87,8 @@ async def rewrite_chapter(
     prose_result = await ai_service.generate_prose(
         chapter.raw_input,
         scene_data,
-        chapter.followup_answer,
+        chapter.conversation_history or [],
+        chapter.enrichment_summary,
         chapter.language,
     )
 

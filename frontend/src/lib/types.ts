@@ -34,6 +34,8 @@ export interface Chapter {
   language: string
   followup_question?: string
   followup_answer?: string
+  conversation_history?: ConversationQuestion[]
+  enrichment_summary?: string
   scene_data?: SceneData
   prose: string
   pull_quote: string
@@ -51,6 +53,22 @@ export interface SceneData {
   followup_question: string
 }
 
+export interface ConversationQuestion {
+  question_id: string
+  question_type: 'mcq' | 'open'
+  question_text: string
+  options?: string[]
+  answer?: string
+}
+
+export interface ConversationResponse {
+  status: 'asking' | 'ready'
+  question?: ConversationQuestion
+  questions_remaining?: number
+  enrichment_score?: number
+  summary?: string
+}
+
 export interface ProseResult {
   title: string
   prose: string
@@ -65,9 +83,9 @@ export interface DraftChapter {
   rawInput: string
   inputMethod: 'text' | 'voice'
   language: Language
-  followupQuestion?: string
-  followupAnswer?: string
   sceneData?: SceneData
+  conversation: ConversationQuestion[]
+  enrichmentSummary?: string
   title?: string
   prose?: string
   pullQuote?: string

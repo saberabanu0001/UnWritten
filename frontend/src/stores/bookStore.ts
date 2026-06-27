@@ -36,5 +36,6 @@ export function createEmptyDraft(language: Language = 'en'): DraftChapter {
     rawInput: '',
     inputMethod: 'text',
     language,
+    conversation: [],
   }
 }
